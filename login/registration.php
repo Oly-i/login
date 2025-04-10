@@ -2,30 +2,40 @@
 include('config.php');
 session_start();
 
-if(isset($_POST['register'])){
+if(isset($_POST['index'])) {
     $username = $_POST['username'];
     $email = $_POST['email'];
     $password = $_POST['password'];
-
-    $password_hash = password_hash($password, PASSWORD_BCRYPT);
-
-    $query = $connection->prepare("SELECT * FROM usuarios WHERE EMAIL=:email");
-    $query->bindParam("email", $email, PDO::PARAM_STR);
-    $query->execute();
-
-    if($query->rowCount() >0 ){ //si existe un indice con ese correo 
-        echo '<p class="error"> Este ya existe </p>';
-    
-
-    if($query->rowCount() == 0) { //no existe un indice con ese correo, y lo va a guardar
-        $query=$connection->prepare
-        echo '<p class="success"> Registro guardado:) </p>';
-    }else{
-        echo '<p class="error"> Error al guardar </p>';
+    if(empty($username) || empty($email) || empty($password)) {
+        die('Todos los campos son obligatorios');
     }
 
+    if(!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        die('Formato de email inválido');
     }
 
+    try {
+        $check = $connection->prepare("SELECT email FROM usuarios WHERE email = ?");
+        $check->execute([$email]);
+        
+        if($check->rowCount() > 0) {
+            die('Este email ya está registrado');
+        }
+
+        $password_hash = password_hash($password, PASSWORD_BCRYPT);
+        
+        $insert = $connection->prepare("INSERT INTO usuarios (username, email, password) VALUES (?, ?, ?)");
+        $result = $insert->execute([$username, $email, $password_hash]);
+        
+        if($result) {
+            echo 'Registro exitoso!';
+            $_SESSION['user'] = $username;
+        } else {
+            echo 'Error al registrar. Intenta nuevamente.';
+        }
+        
+    } catch(PDOException $e) {
+        echo "Error: " . $e->getMessage();
+    }
 }
-
-?> 
+?>
